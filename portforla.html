@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portforla — Portfolio IDE</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0e0f14;
+  --bg2:#13141a;
+  --bg3:#1a1b23;
+  --bg4:#22232e;
+  --border:#2a2b38;
+  --border2:#363748;
+  --accent:#7c6cff;
+  --accent2:#a393ff;
+  --text:#e2e4f0;
+  --text2:#8c8fa8;
+  --text3:#5a5d72;
+  --green:#4ade80;
+  --red:#f87171;
+  --yellow:#fbbf24;
+  --cyan:#22d3ee;
+  --pink:#f472b6;
+  --radius:8px;
+  --sidebar:220px;
+  --tabs:38px;
+  --toolbar:42px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* LAYOUT */
+#app{display:grid;grid-template-rows:var(--toolbar) 1fr;height:100vh}
+#toolbar{display:flex;align-items:center;gap:4px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--border);z-index:50}
+#main{display:grid;grid-template-columns:var(--sidebar) 1fr 1fr;height:100%;overflow:hidden}
+#sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#editor-pane{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+#preview-pane{display:flex;flex-direction:column;background:var(--bg3);overflow:hidden}
+
+/* TOOLBAR */
+.logo{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.5px;margin-right:8px}
+.logo span{color:var(--accent)}
+.tb-sep{width:1px;height:20px;background:var(--border2);margin:0 6px}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border:none;background:transparent;color:var(--text2);border-radius:6px;cursor:pointer;font-size:12px;transition:all .15s;white-space:nowrap}
+.tb-btn:hover{background:var(--bg4);color:var(--text)}
+.tb-btn svg{width:14px;height:14px;flex-shrink:0}
+.tb-btn.primary{background:var(--accent);color:#fff}
+.tb-btn.primary:hover{background:var(--accent2)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:4px}
+.badge{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500}
+.badge.green{background:rgba(74,222,128,.15);color:var(--green)}
+.badge.purple{background:rgba(124,108,255,.15);color:var(--accent2)}
+
+/* SIDEBAR */
+.sidebar-section{padding:8px 8px 0}
+.sidebar-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:4px 4px 6px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-label button{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px;border-radius:4px;display:flex;align-items:center}
+.sidebar-label button:hover{color:var(--text2);background:var(--bg4)}
+.proj-item{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:6px;cursor:pointer;color:var(--text2);transition:all .12s;position:relative}
+.proj-item:hover{background:var(--bg3);color:var(--text)}
+.proj-item.active{background:rgba(124,108,255,.12);color:var(--accent2)}
+.proj-item .proj-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.proj-item .proj-actions{display:none;gap:2px}
+.proj-item:hover .proj-actions{display:flex}
+.proj-item .proj-actions button{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 3px;border-radius:3px;display:flex;align-items:center}
+.proj-item .proj-actions button:hover{color:var(--text);background:var(--bg4)}
+.proj-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.proj-item.active .proj-dot{background:var(--accent)}
+.sidebar-actions{padding:8px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border);margin-top:auto}
+.sidebar-footer-btn{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;color:var(--text2);background:none;border:none;width:100%;text-align:left;font-size:12px;transition:all .12s}
+.sidebar-footer-btn:hover{background:var(--bg3);color:var(--text)}
+.sidebar-footer-btn svg{width:14px;height:14px;flex-shrink:0}
+
+/* TABS */
+#editor-tabs{display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--border);height:var(--tabs);overflow:hidden}
+.tab{display:flex;align-items:center;gap:6px;padding:0 14px;height:100%;cursor:pointer;color:var(--text3);border-right:1px solid var(--border);font-size:12px;transition:all .1s;position:relative;white-space:nowrap;user-select:none}
+.tab:hover{color:var(--text2);background:var(--bg3)}
+.tab.active{color:var(--text);background:var(--bg)}
+.tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent)}
+.tab .tab-close{display:none;width:14px;height:14px;align-items:center;justify-content:center;border-radius:3px;margin-left:2px}
+.tab:hover .tab-close,.tab.active .tab-close{display:flex}
+.tab .tab-close:hover{background:var(--bg4);color:var(--text)}
+.tab-lang{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:500}
+.tab-lang.html{background:rgba(249,115,22,.15);color:#fb923c}
+.tab-lang.css{background:rgba(34,211,238,.15);color:var(--cyan)}
+.tab-lang.js{background:rgba(251,191,36,.15);color:var(--yellow)}
+
+/* EDITOR */
+#editor-wrap{flex:1;overflow:hidden;position:relative}
+.CodeMirror{height:100%!important;background:var(--bg)!important;font-family:'JetBrains Mono',monospace!important;font-size:13px!important;line-height:1.6!important}
+.CodeMirror-gutters{background:var(--bg)!important;border-right:1px solid var(--border)!important}
+.CodeMirror-linenumber{color:var(--text3)!important}
+.CodeMirror-cursor{border-left:2px solid var(--accent)!important}
+.CodeMirror-scroll{padding-bottom:40px}
+
+/* EDITOR TOOLBAR */
+#editor-actions{display:flex;align-items:center;gap:2px;padding:4px 8px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.ea-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border:none;background:transparent;color:var(--text2);border-radius:5px;cursor:pointer;font-size:11px;transition:all .12s}
+.ea-btn:hover{background:var(--bg4);color:var(--text)}
+.ea-btn svg{width:12px;height:12px}
+.ea-sep{width:1px;height:14px;background:var(--border2);margin:0 3px}
+#color-picker-wrap{position:relative;display:flex;align-items:center}
+#color-picker-wrap input[type=color]{width:22px;height:22px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;overflow:hidden}
+
+/* PREVIEW */
+#preview-header{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.preview-title{font-size:11px;color:var(--text2);font-weight:500}
+#url-bar{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);font-size:11px;display:flex;align-items:center;gap:6px}
+.preview-ctrl{display:flex;align-items:center;gap:2px}
+.preview-ctrl button{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center}
+.preview-ctrl button:hover{background:var(--bg4);color:var(--text)}
+#preview-frame{flex:1;border:none;background:#fff}
+.preview-device-btns{display:flex;gap:2px;margin-left:auto}
+.device-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:10px;display:flex;align-items:center;gap:3px}
+.device-btn:hover,.device-btn.active{background:var(--bg4);color:var(--accent2)}
+
+/* PANELS / MODALS */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.panel-overlay.open{display:flex}
+.panel{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:520px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:14px;font-weight:600}
+.panel-close{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;border-radius:5px;display:flex;align-items:center}
+.panel-close:hover{background:var(--bg4);color:var(--text)}
+.panel-body{padding:16px 20px;overflow-y:auto;flex:1}
+.panel-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* TEMPLATE GALLERY */
+.template-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.template-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:all .15s}
+.template-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.template-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,108,255,.2)}
+.template-preview{height:100px;overflow:hidden;position:relative}
+.template-preview iframe{width:200%;height:200%;transform:scale(.5);transform-origin:top left;pointer-events:none;border:none}
+.template-info{padding:10px 12px}
+.template-name{font-size:12px;font-weight:600;margin-bottom:3px}
+.template-desc{font-size:11px;color:var(--text2)}
+
+/* SEO CHECKER */
+.seo-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.seo-item:last-child{border-bottom:none}
+.seo-icon{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+.seo-label{font-size:12px;font-weight:500;margin-bottom:2px}
+.seo-detail{font-size:11px;color:var(--text2)}
+.seo-pass{color:var(--green)}
+.seo-fail{color:var(--red)}
+.seo-warn{color:var(--yellow)}
+
+/* SNIPPETS */
+.snippet-item{padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .12s;margin-bottom:6px}
+.snippet-item:hover{border-color:var(--accent);background:rgba(124,108,255,.05)}
+.snippet-name{font-size:12px;font-weight:500;margin-bottom:3px}
+.snippet-preview{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* DEPLOY MODAL */
+.deploy-step{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.deploy-step:last-child{border-bottom:none}
+.step-num{width:24px;height:24px;border-radius:50%;background:rgba(124,108,255,.15);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.step-content{flex:1}
+.step-title{font-size:12px;font-weight:600;margin-bottom:4px}
+.step-desc{font-size:11px;color:var(--text2);line-height:1.5}
+.input-field{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:12px;margin-top:6px;outline:none;transition:border-color .15s}
+.input-field:focus{border-color:var(--accent)}
+.deploy-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;width:100%;justify-content:center;margin-top:12px}
+.deploy-btn:hover{background:var(--accent2)}
+.deploy-btn:disabled{opacity:.5;cursor:not-allowed}
+.deploy-result{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:14px;margin-top:12px;display:none}
+.deploy-url{color:var(--green);font-size:13px;font-weight:500;text-decoration:none}
+.deploy-url:hover{text-decoration:underline}
+
+/* NEW PROJECT MODAL */
+.form-group{margin-bottom:14px}
+.form-label{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:5px;display:block}
+.new-proj-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.new-proj-btn:hover{background:var(--accent2)}
+
+/* STATUS BAR */
+#statusbar{display:flex;align-items:center;gap:12px;padding:0 12px;background:var(--accent);height:22px;font-size:11px;color:rgba(255,255,255,.8)}
+#statusbar span{color:#fff;font-weight:500}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* KEYBOARD SHORTCUTS */
+.shortcuts-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.shortcut-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg3);border-radius:6px}
+.shortcut-label{font-size:12px;color:var(--text2)}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:2px 6px;border-radius:4px}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:32px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px;animation:slideIn .2s ease;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:all}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--accent)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0;transform:translateX(100%)}}
+.toast.out{animation:fadeOut .2s ease forwards}
+
+/* CONTEXT MENU */
+#ctx-menu{position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px;z-index:300;display:none;min-width:150px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.ctx-item{padding:7px 12px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.ctx-item:hover{background:var(--bg4);color:var(--text)}
+.ctx-item.danger:hover{background:rgba(248,113,113,.1);color:var(--red)}
+.ctx-sep{height:1px;background:var(--border);margin:4px 0}
+
+/* PREVIEW iframe container */
+#preview-frame-wrap{flex:1;overflow:auto;position:relative}
+#preview-frame{width:100%;height:100%;border:none;background:#fff}
+#preview-frame-wrap.mobile{display:flex;align-items:flex-start;justify-content:center;padding:20px;background:var(--bg)}
+#preview-frame-wrap.mobile #preview-frame{width:390px;height:844px;border-radius:12px;box-shadow:0 0 0 1px var(--border2),0 24px 48px rgba(0,0,0,.4);flex-shrink:0}
+
+/* SCROLL PROJECTS */
+#project-list{overflow-y:auto;flex:1;padding:4px 8px}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <div class="logo">port<span>forla</span></div>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openModal('new-project-modal')" title="New Project (Ctrl+N)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    New
+  </button>
+  <button class="tb-btn" onclick="saveProject()" title="Save (Ctrl+S)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save
+  </button>
+  <button class="tb-btn" onclick="openModal('template-modal')" title="Templates">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Templates
+  </button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openModal('seo-modal')" title="SEO Checker">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    SEO Check
+  </button>
+  <button class="tb-btn" onclick="openModal('shortcuts-modal')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+    Shortcuts
+  </button>
+  <div class="tb-right">
+    <span class="badge green">● Live</span>
+    <div class="tb-sep"></div>
+    <button class="tb-btn primary" onclick="openModal('deploy-modal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 012 17c.01-.7.2-1.4.57-2"/><path d="M6 17l3.13-5.78c.53-.97.43-2.2-.26-3.07A4.9 4.9 0 018.14 5h5.72c.94 0 1.44.97.94 1.73l-.54.81"/><path d="M12 17v-5"/><path d="M8 6h8"/></svg>
+      Deploy
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">
+        Projects
+        <button onclick="openModal('new-project-modal')" title="New project">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div id="project-list"></div>
+    </div>
+    <div class="sidebar-actions">
+      <button class="sidebar-footer-btn" onclick="openModal('snippets-modal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        CSS Snippets
+      </button>
+      <button class="sidebar-footer-btn" onclick="refreshPreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+        Refresh Preview (F5)
+      </button>
+    </div>
+  </div>
+
+  <!-- EDITOR PANE -->
+  <div id="editor-pane">
+    <div id="editor-tabs">
+      <div class="tab active" data-tab="html" onclick="switchTab('html')">
+        <span class="tab-lang html">HTML</span>
+        index.html
+      </div>
+      <div class="tab" data-tab="css" onclick="switchTab('css')">
+        <span class="tab-lang css">CSS</span>
+        style.css
+      </div>
+      <div class="tab" data-tab="js" onclick="switchTab('js')">
+        <span class="tab-lang js">JS</span>
+        script.js
+      </div>
+    </div>
+    <div id="editor-actions">
+      <button class="ea-btn" onclick="formatCode()" title="Format code">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+        Format
+      </button>
+      <div class="ea-sep"></div>
+      <button class="ea-btn" onclick="wrapTag()" title="Wrap with tag">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
+        Wrap
+      </button>
+      <button class="ea-btn" onclick="commentLine()" title="Comment/uncomment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Comment
+      </button>
+      <div class="ea-sep"></div>
+      <div class="color-picker-wrap" style="display:flex;align-items:center;gap:5px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.477-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        <input type="color" id="color-picker" value="#7c6cff" onchange="insertColor(this.value)" title="Pick color to insert">
+        <span style="font-size:11px;color:var(--text2)">Color</span>
+      </div>
+    </div>
+    <div id="editor-wrap">
+      <textarea id="editor"></textarea>
+    </div>
+  </div>
+
+  <!-- PREVIEW PANE -->
+  <div id="preview-pane">
+    <div id="preview-header">
+      <div class="preview-ctrl">
+        <button onclick="refreshPreview()" title="Refresh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+        </button>
+      </div>
+      <div id="url-bar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span id="preview-url">portforla://preview</span>
+      </div>
+      <div class="preview-device-btns">
+        <button class="device-btn active" onclick="setDevice('desktop',this)" title="Desktop">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </button>
+        <button class="device-btn" onclick="setDevice('mobile',this)" title="Mobile">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="preview-frame-wrap">
+      <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <span id="sb-project">My Portfolio</span>
+  <span>·</span>
+  <span id="sb-lang">HTML</span>
+  <span>·</span>
+  <span id="sb-lines">0 lines</span>
+  <span>·</span>
+  <span id="sb-cursor">Ln 1, Col 1</span>
+  <span style="margin-left:auto" id="sb-saved">All changes saved</span>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxRename()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Rename
+  </div>
+  <div class="ctx-item" onclick="ctxDuplicate()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    Duplicate
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxDelete()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+    Delete
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- NEW PROJECT MODAL -->
+<div class="panel-overlay" id="new-project-modal">
+  <div class="panel" style="width:380px">
+    <div class="panel-header">
+      <div class="panel-title">New Project</div>
+      <button class="panel-close" onclick="closeModal('new-project-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label class="form-label">Project name</label>
+        <input class="input-field" id="new-proj-name" type="text" placeholder="My Portfolio" value="">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Start from</label>
+        <select class="input-field" id="new-proj-template">
+          <option value="blank">Blank project</option>
+          <option value="minimal">Minimal Portfolio</option>
+          <option value="creative">Creative Portfolio</option>
+          <option value="developer">Developer Portfolio</option>
+          <option value="designer">Designer Portfolio</option>
+          <option value="agency">Agency Portfolio</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-footer">
+      <button class="tb-btn" onclick="closeModal('new-project-modal')">Cancel</button>
+      <button class="new-proj-btn" onclick="createNewProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE GALLERY -->
+<div class="panel-overlay" id="template-modal">
+  <div class="panel" style="width:580px">
+    <div class="panel-header">
+      <div class="panel-title">Template Gallery</div>
+      <button class="panel-close" onclick="closeModal('template-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Choose a template to apply to your current project</p>
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+    <div class="panel-footer">
+      <button class="tb-btn" onclick="closeModal('template-modal')">Cancel</button>
+      <button class="new-proj-btn" onclick="applySelectedTemplate()">Apply Template</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEO CHECKER -->
+<div class="panel-overlay" id="seo-modal">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">SEO Checker</div>
+      <button class="panel-close" onclick="closeModal('seo-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body" id="seo-results"></div>
+    <div class="panel-footer">
+      <button class="new-proj-btn" onclick="runSEOCheck()">Re-check</button>
+    </div>
+  </div>
+</div>
+
+<!-- SNIPPETS -->
+<div class="panel-overlay" id="snippets-modal">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">CSS Snippets</div>
+      <button class="panel-close" onclick="closeModal('snippets-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body" id="snippets-list"></div>
+  </div>
+</div>
+
+<!-- DEPLOY MODAL -->
+<div class="panel-overlay" id="deploy-modal">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Deploy to GitHub Pages</div>
+      <button class="panel-close" onclick="closeModal('deploy-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body">
+      <div class="deploy-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">GitHub username</div>
+          <div class="step-desc">Enter your GitHub username to generate the deployment URL</div>
+          <input class="input-field" id="gh-username" type="text" placeholder="yourusername" oninput="updateDeployPreview()">
+        </div>
+      </div>
+      <div class="deploy-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Repository name</div>
+          <div class="step-desc">This will become your GitHub repository</div>
+          <input class="input-field" id="gh-repo" type="text" placeholder="my-portfolio" oninput="updateDeployPreview()">
+        </div>
+      </div>
+      <div class="deploy-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">GitHub token</div>
+          <div class="step-desc">Personal access token with repo scope (<a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent2)">generate one here</a>)</div>
+          <input class="input-field" id="gh-token" type="password" placeholder="ghp_...">
+        </div>
+      </div>
+      <div id="deploy-url-preview" style="font-size:11px;color:var(--text2);margin:8px 0;display:none">
+        Your site will be live at: <span id="deploy-url-text" style="color:var(--accent2)"></span>
+      </div>
+      <button class="deploy-btn" id="deploy-btn" onclick="deployToGitHub()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+        Deploy to GitHub Pages
+      </button>
+      <div class="deploy-result" id="deploy-result">
+        <div style="color:var(--green);font-weight:600;margin-bottom:6px;font-size:13px">Deployed successfully!</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Your portfolio is live at:</div>
+        <a class="deploy-url" id="deploy-live-url" href="#" target="_blank"></a>
+        <div style="font-size:11px;color:var(--text2);margin-top:8px">GitHub Pages may take 1–2 minutes to go live</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHORTCUTS -->
+<div class="panel-overlay" id="shortcuts-modal">
+  <div class="panel" style="width:460px">
+    <div class="panel-header">
+      <div class="panel-title">Keyboard Shortcuts</div>
+      <button class="panel-close" onclick="closeModal('shortcuts-modal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body">
+      <div class="shortcuts-grid">
+        <div class="shortcut-item"><span class="shortcut-label">Save project</span><span class="kbd">Ctrl+S</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">New project</span><span class="kbd">Ctrl+N</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Refresh preview</span><span class="kbd">F5</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">HTML tab</span><span class="kbd">Ctrl+1</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">CSS tab</span><span class="kbd">Ctrl+2</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">JS tab</span><span class="kbd">Ctrl+3</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Comment line</span><span class="kbd">Ctrl+/</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Deploy</span><span class="kbd">Ctrl+D</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Templates</span><span class="kbd">Ctrl+T</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">SEO check</span><span class="kbd">Ctrl+Shift+S</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Snippets</span><span class="kbd">Ctrl+Shift+C</span></div>
+        <div class="shortcut-item"><span class="shortcut-label">Format code</span><span class="kbd">Ctrl+Shift+F</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================
+   STATE
+   ===================== */
+let projects = JSON.parse(localStorage.getItem('portforla_projects') || '[]');
+let activeProjectId = localStorage.getItem('portforla_active') || null;
+let currentTab = 'html';
+let editors = {};
+let selectedTemplate = null;
+let ctxTargetId = null;
+let liveUpdateTimer = null;
+
+/* =====================
+   TEMPLATES DATA
+   ===================== */
+const TEMPLATES = {
+  blank: {
+    name:'Blank',
+    desc:'Start from scratch',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="My Portfolio">
+  <title>My Portfolio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Hello, World!</h1>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background: #f5f5f5;
+  color: #333;
+}`,
+    js:`// Your JavaScript here
+console.log('Portfolio loaded!');`
+  },
+  minimal: {
+    name:'Minimal',
+    desc:'Clean, typography-forward',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Portfolio of a creative professional">
+  <title>Alex Chen — Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <span class="logo">AC</span>
+    <div class="nav-links">
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+  <header>
+    <h1>Alex Chen</h1>
+    <p class="subtitle">Product Designer & Developer</p>
+    <p class="intro">I craft digital experiences that are beautiful, functional, and human-centered.</p>
+    <a href="#work" class="cta">View my work →</a>
+  </header>
+  <section id="work">
+    <h2>Selected Work</h2>
+    <div class="grid">
+      <div class="card"><div class="card-img" style="background:#f0f0f0"></div><h3>Project One</h3><p>Product design, 2024</p></div>
+      <div class="card"><div class="card-img" style="background:#e8e8e8"></div><h3>Project Two</h3><p>Web development, 2024</p></div>
+      <div class="card"><div class="card-img" style="background:#f0f0f0"></div><h3>Project Three</h3><p>Brand identity, 2023</p></div>
+    </div>
+  </section>
+  <footer id="contact">
+    <p>Say hello · <a href="mailto:alex@example.com">alex@example.com</a></p>
+  </footer>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;color:#111;background:#fafafa;font-size:16px;line-height:1.6}
+nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 3rem;position:fixed;top:0;left:0;right:0;background:rgba(250,250,250,.9);backdrop-filter:blur(8px);z-index:10}
+.logo{font-weight:500;font-size:1.1rem}
+.nav-links a{margin-left:2rem;text-decoration:none;color:#555;font-size:.9rem;transition:color .2s}
+.nav-links a:hover{color:#111}
+header{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 3rem;padding-top:80px}
+h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:300;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem}
+.subtitle{font-size:1.1rem;color:#666;margin-bottom:1.5rem}
+.intro{max-width:480px;color:#444;margin-bottom:2.5rem;font-size:1.05rem}
+.cta{display:inline-block;color:#111;text-decoration:none;border-bottom:1px solid #111;padding-bottom:2px;font-size:.95rem;transition:opacity .2s}
+.cta:hover{opacity:.5}
+section{padding:6rem 3rem}
+h2{font-size:2rem;font-weight:300;margin-bottom:3rem;letter-spacing:-.02em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:2rem}
+.card{cursor:pointer}.card-img{height:200px;border-radius:4px;margin-bottom:1rem;background:#f0f0f0}
+.card h3{font-size:1rem;font-weight:500;margin-bottom:.25rem}
+.card p{font-size:.85rem;color:#888}
+footer{padding:3rem;border-top:1px solid #eee;color:#666;font-size:.9rem}
+footer a{color:#111}`,
+    js:`document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{e.preventDefault();document.querySelector(a.getAttribute('href')).scrollIntoView({behavior:'smooth'})})
+})`
+  },
+  creative: {
+    name:'Creative',
+    desc:'Bold, expressive layout',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Creative portfolio — Jordan Lee, Visual Artist">
+  <title>Jordan Lee — Creative</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="cursor"></div>
+  <header>
+    <div class="name-block">
+      <span>JORDAN</span>
+      <span class="outline">LEE</span>
+    </div>
+    <div class="role">Visual Artist & Animator</div>
+    <div class="scroll-hint">↓ scroll</div>
+  </header>
+  <main>
+    <section class="manifesto">
+      <p>I make things move, breathe, and feel alive. From brand films to interactive experiments — always <em>intentional</em>, always <em>unexpected</em>.</p>
+    </section>
+    <section class="works">
+      <div class="work-item"><div class="work-num">01</div><div class="work-title">Neon Dreams</div><div class="work-tags">Animation · 2024</div></div>
+      <div class="work-item"><div class="work-num">02</div><div class="work-title">Fluid Identity</div><div class="work-tags">Brand · Motion · 2024</div></div>
+      <div class="work-item"><div class="work-num">03</div><div class="work-title">Echoes</div><div class="work-tags">Interactive · 2023</div></div>
+      <div class="work-item"><div class="work-num">04</div><div class="work-title">Terra</div><div class="work-tags">Film · 2023</div></div>
+    </section>
+    <section class="contact-strip">
+      <span>Let's make something →</span>
+      <a href="mailto:jordan@example.com">jordan@example.com</a>
+    </section>
+  </main>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#0a0a0a;color:#f0f0f0;cursor:none;overflow-x:hidden}
+.cursor{position:fixed;width:10px;height:10px;background:#ff4b00;border-radius:50%;pointer-events:none;z-index:999;transition:transform .1s;mix-blend-mode:difference}
+header{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:4rem;position:relative}
+.name-block{display:flex;gap:.4em;font-size:clamp(4rem,12vw,10rem);font-weight:700;line-height:.9;letter-spacing:-.04em}
+.outline{-webkit-text-stroke:2px #f0f0f0;color:transparent}
+.role{font-family:'Space Mono',monospace;font-size:.85rem;color:#666;margin-top:2rem;letter-spacing:.1em;text-transform:uppercase}
+.scroll-hint{position:absolute;bottom:2rem;left:4rem;font-family:'Space Mono',monospace;font-size:.75rem;color:#444;animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+.manifesto{padding:6rem 4rem;border-top:1px solid #222}
+.manifesto p{font-size:clamp(1.2rem,3vw,2rem);font-weight:400;line-height:1.4;max-width:700px;color:#ccc}
+.manifesto em{font-style:normal;color:#ff4b00}
+.works{border-top:1px solid #222}
+.work-item{display:flex;align-items:center;gap:2rem;padding:2rem 4rem;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:all .2s}
+.work-item:hover{background:#111;padding-left:5rem}
+.work-num{font-family:'Space Mono',monospace;font-size:.75rem;color:#444}
+.work-title{font-size:clamp(1.2rem,3vw,2rem);font-weight:700;flex:1}
+.work-tags{font-family:'Space Mono',monospace;font-size:.75rem;color:#555}
+.contact-strip{display:flex;justify-content:space-between;align-items:center;padding:4rem;border-top:1px solid #222;font-size:1.2rem}
+.contact-strip a{color:#ff4b00;text-decoration:none;font-size:1rem;border-bottom:1px solid #ff4b00}`,
+    js:`const cursor=document.querySelector('.cursor');
+document.addEventListener('mousemove',e=>{cursor.style.left=e.clientX-5+'px';cursor.style.top=e.clientY-5+'px'});
+document.querySelectorAll('.work-item').forEach(i=>{
+  i.addEventListener('mouseenter',()=>cursor.style.transform='scale(3)');
+  i.addEventListener('mouseleave',()=>cursor.style.transform='scale(1)');
+})`
+  },
+  developer: {
+    name:'Developer',
+    desc:'Tech-focused dark theme',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Full-stack developer portfolio — Sam Rivera">
+  <title>Sam Rivera · Dev</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="scanline"></div>
+  <nav><span class="terminal-prompt">~/sam-rivera</span><div class="nav-links"><a href="#about">about</a><a href="#projects">projects</a><a href="#contact">contact</a></div></nav>
+  <header>
+    <div class="greeting">const greeting = {</div>
+    <h1>&nbsp;&nbsp;name: <span class="str">"Sam Rivera"</span>,</h1>
+    <h2>&nbsp;&nbsp;role: <span class="str">"Full Stack Developer"</span>,</h2>
+    <div class="closing">}</div>
+    <div class="caret-line"><span class="prompt">$</span> <span class="typed" id="typed"></span><span class="caret">▋</span></div>
+  </header>
+  <section id="projects">
+    <div class="section-header"><span class="comment">// projects</span></div>
+    <div class="proj-grid">
+      <div class="proj-card"><div class="proj-header"><span class="proj-name">api-forge</span><span class="proj-lang lang-go">Go</span></div><p>High-performance REST API framework with automatic OpenAPI generation</p><div class="proj-links"><a href="#">GitHub</a><a href="#">Demo</a></div></div>
+      <div class="proj-card"><div class="proj-header"><span class="proj-name">vec-search</span><span class="proj-lang lang-py">Python</span></div><p>Vector similarity search engine using FAISS and FastAPI</p><div class="proj-links"><a href="#">GitHub</a><a href="#">Demo</a></div></div>
+      <div class="proj-card"><div class="proj-header"><span class="proj-name">css-zen</span><span class="proj-lang lang-ts">TypeScript</span></div><p>Zero-runtime CSS-in-JS library with type-safe theming</p><div class="proj-links"><a href="#">GitHub</a><a href="#">Demo</a></div></div>
+    </div>
+  </section>
+  <section id="about">
+    <div class="section-header"><span class="comment">// stack</span></div>
+    <div class="stack-list">
+      <span class="tag">Rust</span><span class="tag">Go</span><span class="tag">TypeScript</span><span class="tag">Python</span><span class="tag">React</span><span class="tag">PostgreSQL</span><span class="tag">Redis</span><span class="tag">Docker</span><span class="tag">Kubernetes</span>
+    </div>
+  </section>
+  <footer id="contact">
+    <span class="prompt">$</span> <a href="mailto:sam@example.com">sam@example.com</a>
+  </footer>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh;overflow-x:hidden}
+.scanline{position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px)}
+nav{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 2.5rem;border-bottom:1px solid #21262d}
+.terminal-prompt{font-family:'JetBrains Mono',monospace;color:#58a6ff;font-size:.85rem}
+.nav-links a{margin-left:2rem;color:#8b949e;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:.8rem;transition:color .15s}
+.nav-links a:hover{color:#c9d1d9}
+header{padding:5rem 2.5rem 4rem;border-bottom:1px solid #21262d}
+.greeting,.closing{font-family:'JetBrains Mono',monospace;color:#8b949e;font-size:clamp(1rem,2.5vw,1.4rem);margin:.2rem 0}
+h1,h2{font-family:'JetBrains Mono',monospace;font-size:clamp(1rem,2.5vw,1.4rem);font-weight:400;margin:.2rem 0}
+.str{color:#a5d6ff}
+.caret-line{margin-top:2.5rem;font-family:'JetBrains Mono',monospace;font-size:.9rem;color:#8b949e;display:flex;align-items:center;gap:.5rem}
+.prompt{color:#3fb950}
+.typed{color:#c9d1d9}
+.caret{animation:blink 1s step-end infinite;color:#58a6ff}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+section{padding:4rem 2.5rem;border-bottom:1px solid #21262d}
+.section-header{margin-bottom:2rem}
+.comment{font-family:'JetBrains Mono',monospace;color:#3fb950;font-size:.85rem}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.proj-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:1.2rem;transition:border-color .15s}
+.proj-card:hover{border-color:#58a6ff}
+.proj-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+.proj-name{font-family:'JetBrains Mono',monospace;color:#58a6ff;font-size:.9rem}
+.proj-lang{font-size:.7rem;padding:2px 8px;border-radius:12px;font-family:'JetBrains Mono',monospace}
+.lang-go{background:rgba(0,173,216,.15);color:#00add8}
+.lang-py{background:rgba(55,118,171,.15);color:#3776ab}
+.lang-ts{background:rgba(49,120,198,.15);color:#3178c6}
+.proj-card p{font-size:.85rem;color:#8b949e;line-height:1.5;margin-bottom:1rem}
+.proj-links a{color:#58a6ff;text-decoration:none;font-size:.8rem;margin-right:1rem}
+.stack-list{display:flex;flex-wrap:wrap;gap:.5rem}
+.tag{background:#21262d;border:1px solid #30363d;color:#8b949e;font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:4px 10px;border-radius:4px}
+footer{padding:2rem 2.5rem;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:#8b949e}
+footer a{color:#58a6ff;text-decoration:none}`,
+    js:`const phrases=['building cool stuff','open to work','let sam@example.com'];
+let idx=0,char=0,dir=1;
+const el=document.getElementById('typed');
+function type(){
+  if(dir===1){el.textContent=phrases[idx].slice(0,++char);if(char===phrases[idx].length){dir=-1;setTimeout(type,1800);return}}
+  else{el.textContent=phrases[idx].slice(0,--char);if(char===0){dir=1;idx=(idx+1)%phrases.length}}
+  setTimeout(type,dir===1?80:40)
+}
+type();`
+  },
+  designer: {
+    name:'Designer',
+    desc:'Visual & brand-focused',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UI/UX Designer portfolio — Maya Patel">
+  <title>Maya Patel — Designer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,700;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav><div class="nav-name">Maya Patel</div><div class="nav-right"><span>UI / UX</span><a href="mailto:maya@example.com" class="nav-cta">Hire me</a></div></nav>
+  <header>
+    <div class="hero-text">
+      <em>Designing</em> digital products people <em>love</em> to use
+    </div>
+    <div class="hero-sub">5 years · 30+ products · 3 continents</div>
+  </header>
+  <section class="featured">
+    <div class="feat-label">Featured Work</div>
+    <div class="feat-grid">
+      <div class="feat-card large" style="background:linear-gradient(135deg,#ffecd2,#fcb69f)"><div class="feat-overlay"><div class="feat-title">Bloom Health</div><div class="feat-type">Product Design</div></div></div>
+      <div class="feat-card" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb)"><div class="feat-overlay"><div class="feat-title">Orbit Finance</div><div class="feat-type">UX Strategy</div></div></div>
+      <div class="feat-card" style="background:linear-gradient(135deg,#84fab0,#8fd3f4)"><div class="feat-overlay"><div class="feat-title">Terra Maps</div><div class="feat-type">Mobile App</div></div></div>
+    </div>
+  </section>
+  <section class="process">
+    <div class="process-step"><span class="ps-num">Research</span><span class="ps-desc">Understanding people, context, and constraints before touching pixels</span></div>
+    <div class="process-step"><span class="ps-num">Prototype</span><span class="ps-desc">Low to high fidelity — testing assumptions early and often</span></div>
+    <div class="process-step"><span class="ps-num">Deliver</span><span class="ps-desc">Pixel-perfect specs, developer handoff, and post-launch iteration</span></div>
+  </section>
+  <footer><a href="mailto:maya@example.com">Let's work together →</a></footer>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f8f6f2;color:#1a1a1a}
+nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 3rem;position:sticky;top:0;background:rgba(248,246,242,.9);backdrop-filter:blur(10px);z-index:10;border-bottom:1px solid rgba(0,0,0,.06)}
+.nav-name{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:300}
+.nav-right{display:flex;align-items:center;gap:2rem;font-size:.85rem;color:#888}
+.nav-cta{background:#1a1a1a;color:#f8f6f2;padding:.5rem 1.2rem;border-radius:100px;text-decoration:none;font-size:.85rem;transition:opacity .2s}
+.nav-cta:hover{opacity:.8}
+header{padding:8rem 3rem 6rem;border-bottom:1px solid rgba(0,0,0,.06)}
+.hero-text{font-family:'Fraunces',serif;font-size:clamp(2.5rem,6vw,5rem);font-weight:300;line-height:1.1;max-width:800px;letter-spacing:-.02em}
+.hero-text em{font-style:italic;color:#c17c5e}
+.hero-sub{margin-top:2rem;font-size:.9rem;color:#888;letter-spacing:.05em}
+.featured{padding:4rem 3rem}
+.feat-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:1.5rem}
+.feat-grid{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:280px 200px;gap:1rem}
+.feat-card{border-radius:12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .3s}
+.feat-card:hover{transform:scale(1.01)}
+.feat-card.large{grid-row:span 2}
+.feat-overlay{position:absolute;bottom:0;left:0;right:0;padding:1.5rem;background:linear-gradient(transparent,rgba(0,0,0,.4))}
+.feat-title{color:#fff;font-family:'Fraunces',serif;font-size:1.2rem;font-weight:700}
+.feat-type{color:rgba(255,255,255,.7);font-size:.8rem;margin-top:.25rem}
+.process{padding:4rem 3rem;border-top:1px solid rgba(0,0,0,.06)}
+.process-step{display:grid;grid-template-columns:180px 1fr;align-items:baseline;padding:1.5rem 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.ps-num{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:300}
+.ps-desc{color:#666;font-size:.9rem;line-height:1.6;max-width:500px}
+footer{padding:4rem 3rem;text-align:center;border-top:1px solid rgba(0,0,0,.06)}
+footer a{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:300;color:#1a1a1a;text-decoration:none;border-bottom:2px solid #c17c5e}`,
+    js:`document.querySelectorAll('.feat-card').forEach(c=>{
+  c.addEventListener('click',()=>{alert('Case study coming soon!')})
+})`
+  },
+  agency: {
+    name:'Agency',
+    desc:'Full-featured agency site',
+    html:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Digital agency — we build products that matter">
+  <title>Studio Nord — Digital Agency</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Instrument+Sans:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav><div class="logo">NORD</div><div class="nav-links"><a href="#">Work</a><a href="#">Services</a><a href="#">About</a><a href="#" class="nav-btn">Start a project</a></div></nav>
+  <header>
+    <div class="eyebrow">Est. 2018</div>
+    <h1>We make the<br><span>internet</span><br>beautiful</h1>
+    <div class="header-meta"><span>37 projects</span><span>·</span><span>12 countries</span><span>·</span><span>100% remote</span></div>
+    <div class="marquee-wrap"><div class="marquee"><span>Brand Identity · </span><span>Web Design · </span><span>Motion · </span><span>Development · </span><span>Strategy · </span><span>Brand Identity · </span><span>Web Design · </span><span>Motion · </span><span>Development · </span><span>Strategy · </span></div></div>
+  </header>
+  <section class="work">
+    <div class="work-row"><div class="work-text"><h3>Volta Electric</h3><span>Web · Brand</span></div><div class="work-img" style="background:#e8e4ff"></div></div>
+    <div class="work-row"><div class="work-text"><h3>Harvest Foods</h3><span>Identity · Motion</span></div><div class="work-img" style="background:#e8f5e9"></div></div>
+    <div class="work-row"><div class="work-text"><h3>Flux Architecture</h3><span>Web · 3D</span></div><div class="work-img" style="background:#fff3e0"></div></div>
+  </section>
+  <section class="cta-block">
+    <h2>Ready to build<br>something great?</h2>
+    <a href="mailto:hello@studionord.co" class="big-btn">hello@studionord.co →</a>
+  </section>
+  <script src="script.js"><\/script>
+</body>
+</html>`,
+    css:`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Instrument Sans',sans-serif;background:#fff;color:#111;overflow-x:hidden}
+nav{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 3rem;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:10}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:.08em}
+.nav-links a{margin-left:2rem;text-decoration:none;color:#555;font-size:.85rem;transition:color .2s}
+.nav-links a:hover{color:#111}
+.nav-btn{background:#111;color:#fff!important;padding:.45rem 1.1rem;border-radius:100px;font-size:.8rem!important}
+header{padding:5rem 3rem 0;border-bottom:1px solid #eee}
+.eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:#999;margin-bottom:1.5rem}
+h1{font-family:'Syne',sans-serif;font-size:clamp(4rem,12vw,9rem);font-weight:800;line-height:.9;letter-spacing:-.04em;margin-bottom:2rem}
+h1 span{-webkit-text-stroke:2px #111;color:transparent}
+.header-meta{font-size:.8rem;color:#999;display:flex;gap:1rem;margin-bottom:3rem}
+.marquee-wrap{overflow:hidden;border-top:1px solid #eee;padding:1rem 0}
+.marquee{white-space:nowrap;animation:scroll 20s linear infinite;font-size:.8rem;color:#bbb;letter-spacing:.05em}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.work{border-bottom:1px solid #eee}
+.work-row{display:grid;grid-template-columns:260px 1fr;border-bottom:1px solid #eee;cursor:pointer;transition:background .15s}
+.work-row:hover{background:#fafafa}
+.work-text{padding:2rem 3rem;display:flex;flex-direction:column;justify-content:center;border-right:1px solid #eee}
+.work-text h3{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:.3rem}
+.work-text span{font-size:.8rem;color:#999}
+.work-img{height:160px}
+.cta-block{padding:8rem 3rem;text-align:center}
+h2{font-family:'Syne',sans-serif;font-size:clamp(2rem,6vw,5rem);font-weight:800;letter-spacing:-.03em;line-height:.95;margin-bottom:3rem}
+.big-btn{font-size:clamp(1rem,2.5vw,1.5rem);color:#111;text-decoration:none;border-bottom:2px solid #111;padding-bottom:4px;transition:opacity .2s}
+.big-btn:hover{opacity:.5}`,
+    js:`document.querySelectorAll('.work-row').forEach(r=>{
+  r.addEventListener('click',()=>alert('Case study coming soon!'))
+})`
+  }
+};
+
+const CSS_SNIPPETS = [
+  {name:'Glassmorphism card',code:`backdrop-filter: blur(16px) saturate(180%);
+background: rgba(255,255,255,0.12);
+border: 1px solid rgba(255,255,255,0.2);
+border-radius: 16px;`},
+  {name:'Smooth gradient background',code:`background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);`},
+  {name:'Neon glow text',code:`text-shadow: 0 0 10px currentColor, 0 0 40px currentColor, 0 0 80px currentColor;`},
+  {name:'Animated gradient border',code:`background: linear-gradient(#fff,#fff) padding-box,
+  linear-gradient(45deg,#fc466b,#3f5efb) border-box;
+border: 2px solid transparent;
+border-radius: 12px;`},
+  {name:'CSS-only tooltip',code:`position: relative;
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 120%; left: 50%;
+  transform: translateX(-50%);
+  background: #333; color: #fff;
+  padding: 4px 10px; border-radius: 6px;
+  font-size: 12px; white-space: nowrap;
+}`},
+  {name:'Smooth scroll snap',code:`scroll-snap-type: y mandatory;
+overflow-y: scroll;
+/* child: */
+scroll-snap-align: start;`},
+  {name:'CSS grid masonry',code:`display: grid;
+grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+grid-auto-rows: 8px;
+/* item: */
+grid-row-end: span var(--row-span, 30);`},
+  {name:'Skeleton loading',code:`@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+background-size: 200% 100%;
+animation: shimmer 1.5s infinite;`},
+  {name:'Floating label input',code:`.field { position: relative; }
+.field input:focus + label,
+.field input:not(:placeholder-shown) + label {
+  transform: translateY(-120%) scale(0.8);
+  color: var(--accent);
+}
+.field label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); transition: all 0.2s; }`},
+  {name:'CSS-only dark mode',code:`@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0f14;
+    --text: #e2e4f0;
+    --border: #2a2b38;
+  }
+}`},
+];
+
+/* =====================
+   EDITOR INIT
+   ===================== */
+const modeMap = {html:'htmlmixed',css:'css',js:'javascript'};
+let cm;
+window.addEventListener('DOMContentLoaded', () => {
+  cm = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    theme:'dracula',
+    lineNumbers:true,
+    autoCloseTags:true,
+    autoCloseBrackets:true,
+    lineWrapping:false,
+    tabSize:2,
+    indentWithTabs:false,
+    extraKeys:{'Ctrl-/':'toggleComment','Ctrl-S':()=>saveProject(),'F5':()=>refreshPreview()}
+  });
+  cm.on('change', () => {
+    if(!activeProjectId) return;
+    const p = getProject(activeProjectId);
+    if(!p) return;
+    p[currentTab] = cm.getValue();
+    saveProjects();
+    clearTimeout(liveUpdateTimer);
+    liveUpdateTimer = setTimeout(refreshPreview, 600);
+    updateStatusBar();
+    document.getElementById('sb-saved').textContent = 'Unsaved changes';
+  });
+  cm.on('cursorActivity', updateStatusBar);
+
+  if(projects.length === 0) {
+    createProject('My Portfolio', 'minimal');
+  } else {
+    renderProjectList();
+    loadProject(activeProjectId || projects[0].id);
+  }
+  buildTemplateGrid();
+  buildSnippetsList();
+  document.addEventListener('keydown', handleGlobalShortcuts);
+  document.addEventListener('click', () => document.getElementById('ctx-menu').style.display='none');
+});
+
+/* =====================
+   PROJECT MANAGEMENT
+   ===================== */
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+function getProject(id) { return projects.find(p=>p.id===id); }
+function saveProjects() { localStorage.setItem('portforla_projects', JSON.stringify(projects)); }
+function setActive(id) { activeProjectId=id; localStorage.setItem('portforla_active',id); }
+
+function createProject(name, template='blank') {
+  const t = TEMPLATES[template] || TEMPLATES.blank;
+  const proj = { id:genId(), name:name||'New Project', html:t.html, css:t.css, js:t.js, created:Date.now() };
+  projects.unshift(proj);
+  saveProjects();
+  renderProjectList();
+  loadProject(proj.id);
+  return proj;
+}
+
+function loadProject(id) {
+  const p = getProject(id);
+  if(!p) return;
+  setActive(id);
+  renderProjectList();
+  switchTab(currentTab, true);
+  document.getElementById('sb-project').textContent = p.name;
+  document.getElementById('preview-url').textContent = `portforla://${p.name.toLowerCase().replace(/\s+/g,'-')}`;
+  refreshPreview();
+  document.getElementById('sb-saved').textContent = 'All changes saved';
+}
+
+function saveProject() {
+  if(!activeProjectId) return;
+  saveProjects();
+  toast('Project saved', 'success');
+  document.getElementById('sb-saved').textContent = 'All changes saved';
+}
+
+function renderProjectList() {
+  const container = document.getElementById('project-list');
+  container.innerHTML = '';
+  projects.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'proj-item' + (p.id===activeProjectId?' active':'');
+    el.innerHTML = `<div class="proj-dot"></div><div class="proj-name">${esc(p.name)}</div><div class="proj-actions"><button onclick="event.stopPropagation();showCtxMenu(event,'${p.id}')" title="More"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></div>`;
+    el.addEventListener('click', ()=>loadProject(p.id));
+    container.appendChild(el);
+  });
+}
+
+function createNewProject() {
+  const name = document.getElementById('new-proj-name').value.trim() || 'New Portfolio';
+  const template = document.getElementById('new-proj-template').value;
+  closeModal('new-project-modal');
+  createProject(name, template);
+  toast(`"${name}" created`, 'success');
+  document.getElementById('new-proj-name').value = '';
+}
+
+/* CONTEXT MENU */
+function showCtxMenu(e, id) {
+  e.stopPropagation();
+  ctxTargetId = id;
+  const menu = document.getElementById('ctx-menu');
+  menu.style.display = 'block';
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+}
+function ctxRename() {
+  document.getElementById('ctx-menu').style.display='none';
+  const p = getProject(ctxTargetId);
+  if(!p) return;
+  const name = prompt('New name:', p.name);
+  if(name && name.trim()) {
+    p.name = name.trim();
+    saveProjects();
+    renderProjectList();
+    if(ctxTargetId===activeProjectId) {
+      document.getElementById('sb-project').textContent = p.name;
+    }
+    toast('Renamed', 'info');
+  }
+}
+function ctxDuplicate() {
+  document.getElementById('ctx-menu').style.display='none';
+  const p = getProject(ctxTargetId);
+  if(!p) return;
+  const clone = {...p, id:genId(), name:p.name+' (copy)', created:Date.now()};
+  projects.splice(projects.indexOf(p)+1,0,clone);
+  saveProjects();
+  renderProjectList();
+  toast('Duplicated', 'success');
+}
+function ctxDelete() {
+  document.getElementById('ctx-menu').style.display='none';
+  const p = getProject(ctxTargetId);
+  if(!p) return;
+  if(!confirm(`Delete "${p.name}"?`)) return;
+  projects = projects.filter(x=>x.id!==ctxTargetId);
+  saveProjects();
+  if(activeProjectId===ctxTargetId) {
+    if(projects.length>0) loadProject(projects[0].id);
+    else { cm.setValue(''); document.getElementById('preview-frame').srcdoc=''; }
+  }
+  renderProjectList();
+  toast('Deleted', 'error');
+}
+
+/* =====================
+   EDITOR TABS
+   ===================== */
+function switchTab(tab, skipLoad=false) {
+  const p = getProject(activeProjectId);
+  if(!skipLoad && p) p[currentTab] = cm.getValue();
+  currentTab = tab;
+  cm.setOption('mode', modeMap[tab]);
+  const content = p ? (p[tab]||'') : '';
+  cm.setValue(content);
+  cm.clearHistory();
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+  document.getElementById('sb-lang').textContent = tab.toUpperCase();
+  updateStatusBar();
+  setTimeout(()=>cm.refresh(),10);
+}
+
+function updateStatusBar() {
+  const cur = cm.getCursor();
+  document.getElementById('sb-cursor').textContent = `Ln ${cur.line+1}, Col ${cur.ch+1}`;
+  document.getElementById('sb-lines').textContent = `${cm.lineCount()} lines`;
+}
+
+/* =====================
+   PREVIEW
+   ===================== */
+function refreshPreview() {
+  const p = getProject(activeProjectId);
+  if(!p) return;
+  if(currentTab==='html') p.html = cm.getValue();
+  else if(currentTab==='css') p.css = cm.getValue();
+  else if(currentTab==='js') p.js = cm.getValue();
+  const combined = buildCombined(p);
+  document.getElementById('preview-frame').srcdoc = combined;
+}
+
+function buildCombined(p) {
+  let html = p.html || '';
+  // Inject CSS before </head> or at top
+  const cssTag = `<style>${p.css||''}</style>`;
+  const jsTag = `<script>${p.js||''}<\/script>`;
+  if(html.includes('</head>')) {
+    html = html.replace('</head>', cssTag+'</head>');
+  } else {
+    html = cssTag + html;
+  }
+  if(html.includes('</body>')) {
+    html = html.replace('</body>', jsTag+'</body>');
+  } else {
+    html += jsTag;
+  }
+  // Remove linked stylesheet/script tags that reference files
+  html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*href=["']style\.css["'][^>]*>/gi,'');
+  html = html.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,'');
+  return html;
+}
+
+function setDevice(mode, btn) {
+  document.querySelectorAll('.device-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const wrap = document.getElementById('preview-frame-wrap');
+  if(mode==='mobile') wrap.classList.add('mobile');
+  else wrap.classList.remove('mobile');
+}
+
+/* =====================
+   EDITOR ACTIONS
+   ===================== */
+function formatCode() {
+  let v = cm.getValue();
+  if(currentTab==='html') v = formatHTML(v);
+  else if(currentTab==='css') v = formatCSS(v);
+  cm.setValue(v);
+  toast('Code formatted', 'info');
+}
+
+function formatHTML(html) {
+  return html
+    .replace(/>\s+</g,'>\n<')
+    .replace(/(<[^/][^>]*>)(?!\n)/g,'$1\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
+
+function formatCSS(css) {
+  return css
+    .replace(/\{/g,' {\n  ')
+    .replace(/;(?!\s*$)/gm,';\n  ')
+    .replace(/\}/g,'\n}\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
+
+function commentLine() {
+  cm.execCommand('toggleComment');
+}
+
+function wrapTag() {
+  const sel = cm.getSelection();
+  if(!sel) { toast('Select text first', 'info'); return; }
+  const tag = prompt('Wrap with tag:', 'div');
+  if(!tag) return;
+  cm.replaceSelection(`<${tag}>${sel}</${tag}>`);
+}
+
+function insertColor(color) {
+  const doc = cm.getDoc();
+  const cur = doc.getCursor();
+  doc.replaceRange(color, cur);
+  toast(`Inserted ${color}`, 'info');
+}
+
+/* =====================
+   TEMPLATES
+   ===================== */
+function buildTemplateGrid() {
+  const grid = document.getElementById('template-grid');
+  Object.entries(TEMPLATES).forEach(([key,t]) => {
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    card.dataset.key = key;
+    card.innerHTML = `
+      <div class="template-preview">
+        <iframe srcdoc="${esc(buildCombined(t))}" sandbox="allow-scripts"></iframe>
+      </div>
+      <div class="template-info">
+        <div class="template-name">${t.name}</div>
+        <div class="template-desc">${t.desc}</div>
+      </div>`;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.template-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedTemplate = key;
+    });
+    grid.appendChild(card);
+  });
+}
+
+function applySelectedTemplate() {
+  if(!selectedTemplate) { toast('Select a template first', 'info'); return; }
+  const t = TEMPLATES[selectedTemplate];
+  const p = getProject(activeProjectId);
+  if(!p) return;
+  if(!confirm(`Apply "${t.name}" template? This replaces your current code.`)) return;
+  p.html = t.html; p.css = t.css; p.js = t.js;
+  saveProjects();
+  switchTab(currentTab, true);
+  refreshPreview();
+  closeModal('template-modal');
+  toast(`${t.name} template applied`, 'success');
+  selectedTemplate = null;
+  document.querySelectorAll('.template-card').forEach(c=>c.classList.remove('selected'));
+}
+
+/* =====================
+   SEO CHECKER
+   ===================== */
+function runSEOCheck() {
+  const p = getProject(activeProjectId);
+  const html = p ? p.html : '';
+  const checks = [
+    {label:'Title tag',pass:/<title>(.+)<\/title>/i.test(html),detail:'<title> tag found with content'},
+    {label:'Meta description',pass:/<meta[^>]*name=["']description["'][^>]*content=["'][^"']{10,}["']/i.test(html),detail:'Meta description found (10+ chars)'},
+    {label:'H1 heading',pass:/<h1[^>]*>.+<\/h1>/i.test(html),detail:'Page has an H1 heading'},
+    {label:'Viewport meta',pass:/<meta[^>]*name=["']viewport["']/i.test(html),detail:'Viewport meta tag present'},
+    {label:'Lang attribute',pass:/<html[^>]*lang=["'][a-z]{2}/i.test(html),detail:'HTML lang attribute set'},
+    {label:'Image alt text',pass:!/<img(?![^>]*alt=)[^>]*>/i.test(html),detail:'All images have alt attributes'},
+    {label:'Charset',pass:/<meta[^>]*charset/i.test(html),detail:'Character encoding declared'},
+    {label:'Canonical / links',pass:/<a[^>]*href/i.test(html),detail:'Page has at least one link'},
+  ];
+  const res = document.getElementById('seo-results');
+  const pass = checks.filter(c=>c.pass).length;
+  res.innerHTML = `<div style="margin-bottom:12px;font-size:13px"><strong style="color:${pass>=6?'var(--green)':pass>=4?'var(--yellow)':'var(--red)'}">Score: ${pass}/${checks.length}</strong> <span style="color:var(--text2)">${pass>=6?'Good!':pass>=4?'Needs improvement':'Needs work'}</span></div>`;
+  checks.forEach(c => {
+    res.innerHTML += `<div class="seo-item">
+      <svg class="seo-icon ${c.pass?'seo-pass':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        ${c.pass?'<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
+      </svg>
+      <div>
+        <div class="seo-label ${c.pass?'seo-pass':'seo-fail'}">${c.label}</div>
+        <div class="seo-detail">${c.detail}</div>
+      </div>
+    </div>`;
+  });
+}
+
+/* =====================
+   SNIPPETS
+   ===================== */
+function buildSnippetsList() {
+  const list = document.getElementById('snippets-list');
+  CSS_SNIPPETS.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'snippet-item';
+    el.innerHTML = `<div class="snippet-name">${s.name}</div><div class="snippet-preview">${esc(s.code.split('\n')[0])}...</div>`;
+    el.addEventListener('click', () => {
+      // Switch to CSS tab and insert
+      if(currentTab!=='css') {
+        const p = getProject(activeProjectId);
+        if(p) p[currentTab] = cm.getValue();
+        currentTab = 'css';
+        cm.setOption('mode','css');
+        const p2 = getProject(activeProjectId);
+        cm.setValue(p2 ? p2.css : '');
+        document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='css'));
+        document.getElementById('sb-lang').textContent = 'CSS';
+      }
+      const doc = cm.getDoc();
+      const cur = doc.getCursor('to');
+      doc.replaceRange('\n\n/* '+s.name+' */\n.element {\n  '+s.code.split('\n').join('\n  ')+'\n}', cur);
+      closeModal('snippets-modal');
+      toast(`"${s.name}" inserted`, 'success');
+    });
+    list.appendChild(el);
+  });
+}
+
+/* =====================
+   DEPLOY
+   ===================== */
+function updateDeployPreview() {
+  const u = document.getElementById('gh-username').value.trim();
+  const r = document.getElementById('gh-repo').value.trim();
+  const preview = document.getElementById('deploy-url-preview');
+  const text = document.getElementById('deploy-url-text');
+  if(u && r) {
+    preview.style.display = 'block';
+    text.textContent = `https://${u}.github.io/${r}/`;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+async function deployToGitHub() {
+  const username = document.getElementById('gh-username').value.trim();
+  const repo = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  if(!username||!repo||!token) { toast('Fill in all fields', 'error'); return; }
+
+  const btn = document.getElementById('deploy-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Deploying...';
+
+  const p = getProject(activeProjectId);
+  const html = buildCombined(p);
+
+  try {
+    const headers = {'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+
+    // Check / create repo
+    let repoRes = await fetch(`https://api.github.com/repos/${username}/${repo}`, {headers});
+    if(repoRes.status===404) {
+      const createRes = await fetch(`https://api.github.com/user/repos`, {method:'POST',headers,body:JSON.stringify({name:repo,description:'My portfolio built with Portforla',has_pages:true,auto_init:true})});
+      if(!createRes.ok) throw new Error('Failed to create repo');
+      await new Promise(r=>setTimeout(r,2000));
+    }
+
+    // Get SHA of existing index.html
+    let sha = undefined;
+    const fileRes = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/index.html`, {headers});
+    if(fileRes.ok) { const fd = await fileRes.json(); sha = fd.sha; }
+
+    // Push index.html
+    const pushRes = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/index.html`, {
+      method:'PUT', headers,
+      body:JSON.stringify({message:'Deploy portfolio via Portforla',content:btoa(unescape(encodeURIComponent(html))),sha})
+    });
+    if(!pushRes.ok) throw new Error('Failed to push file');
+
+    // Enable Pages
+    await fetch(`https://api.github.com/repos/${username}/${repo}/pages`, {
+      method:'POST', headers:{...headers,'Accept':'application/vnd.github.switcheroo-preview+json'},
+      body:JSON.stringify({source:{branch:'main',path:'/'}})
+    });
+
+    const liveUrl = `https://${username}.github.io/${repo}/`;
+    document.getElementById('deploy-result').style.display = 'block';
+    document.getElementById('deploy-live-url').href = liveUrl;
+    document.getElementById('deploy-live-url').textContent = liveUrl;
+    toast('Deployed!', 'success');
+  } catch(err) {
+    toast('Deploy failed: '+err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg> Deploy to GitHub Pages';
+  }
+}
+
+/* =====================
+   MODAL SYSTEM
+   ===================== */
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if(id==='seo-modal') runSEOCheck();
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => {
+  if(e.target.classList.contains('panel-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
+/* =====================
+   KEYBOARD SHORTCUTS
+   ===================== */
+function handleGlobalShortcuts(e) {
+  const mod = e.ctrlKey||e.metaKey;
+  if(mod && e.key==='s'){e.preventDefault();saveProject();}
+  if(mod && e.key==='n'){e.preventDefault();openModal('new-project-modal');}
+  if(mod && e.key==='t'){e.preventDefault();openModal('template-modal');}
+  if(mod && e.key==='d'){e.preventDefault();openModal('deploy-modal');}
+  if(mod && e.shiftKey && e.key==='S'){e.preventDefault();openModal('seo-modal');}
+  if(mod && e.shiftKey && e.key==='C'){e.preventDefault();openModal('snippets-modal');}
+  if(mod && e.shiftKey && e.key==='F'){e.preventDefault();formatCode();}
+  if(mod && e.key==='1'){e.preventDefault();switchTab('html');}
+  if(mod && e.key==='2'){e.preventDefault();switchTab('css');}
+  if(mod && e.key==='3'){e.preventDefault();switchTab('js');}
+  if(e.key==='F5'){e.preventDefault();refreshPreview();}
+  if(e.key==='Escape'){document.querySelectorAll('.panel-overlay.open').forEach(m=>m.classList.remove('open'));}
+}
+
+/* =====================
+   TOAST
+   ===================== */
+function toast(msg, type='info') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = {success:'<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',error:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'};
+  const colors = {success:'var(--green)',error:'var(--red)',info:'var(--accent2)'};
+  el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors[type]}" stroke-width="2">${icons[type]}</svg>${msg}`;
+  c.appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),200)},2800);
+}
+
+/* =====================
+   UTILS
+   ===================== */
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* CSS spin animation for deploy */
+const style = document.createElement('style');
+style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>
